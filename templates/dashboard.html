@@ -1,0 +1,62 @@
+{% extends "layout.html" %}
+{% block content %}
+<h2>Dashboard</h2>
+
+<a href="{{ url_for('new_expense') }}" class="btn btn-success mb-4">+ Přidat výdaj</a>
+
+<div class="row">
+  <div class="col-md-4">
+    <div class="card text-white bg-primary mb-3">
+      <div class="card-header">Total Expenses</div>
+      <div class="card-body">
+        <h5 class="card-title">{{ total_expenses | int }} Kč</h5>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-8">
+    <canvas id="expensesChart"></canvas>
+  </div>
+</div>
+
+<h3 class="mt-4">Poslední výdaje</h3>
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th>Název</th>
+      <th>Částka</th>
+      <th>Kategorie</th>
+      <th>Datum</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for expense in expenses %}
+    <tr>
+      <td>{{ expense.name }}</td>
+      <td>{{ expense.amount }} Kč</td>
+      <td>{{ expense.category }}</td>
+      <td>{{ expense.date.strftime('%Y-%m-%d') }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const ctx = document.getElementById('expensesChart').getContext('2d');
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: {{ expenses | map(attribute='category') | list | unique | safe }},
+      datasets: [{
+        label: 'Výdaje dle kategorií',
+        data: [
+          {% for category in expenses | map(attribute='category') | list | unique %}
+            {{ expenses | selectattr('category', 'equalto', category) | map(attribute='amount') | sum }},
+          {% endfor %}
+        ],
+        backgroundColor: 'rgba(54, 162, 235, 0.6)'
+      }]
+    }
+  });
+</script>
+{% endblock %}

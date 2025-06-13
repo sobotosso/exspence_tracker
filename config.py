@@ -1,0 +1,1 @@
+# Configuration file (can be extended later)

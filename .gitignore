@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/x;x;
+ENV/
+venv/
+
+
+# Selenium
+geckodriver.log
+chromedriver.log
+*.log
+
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+
+# Ostatní
+.env
+*.tmp
+*.txt
+*.png
+.DS_Store
