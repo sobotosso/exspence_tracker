@@ -1,0 +1,21 @@
+{% extends "layout.html" %}
+{% block content %}
+<h2>Nastavení</h2>
+<form method="POST" action="{{ url_for('add_category') }}" class="mb-3">
+  <div class="input-group">
+    <input type="text" name="name" class="form-control" placeholder="Nová kategorie" required>
+    <button class="btn btn-primary" type="submit">Přidat</button>
+  </div>
+</form>
+
+<ul class="list-group">
+  {% for cat in categories %}
+  <li class="list-group-item d-flex justify-content-between align-items-center">
+    {{ cat.name }}
+    <form method="POST" action="{{ url_for('delete_category', category_id=cat.id) }}">
+      <button class="btn btn-sm btn-danger">Smazat</button>
+    </form>
+  </li>
+  {% endfor %}
+</ul>
+{% endblock %}

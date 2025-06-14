@@ -4,10 +4,32 @@
 
 <a href="{{ url_for('new_expense') }}" class="btn btn-success mb-4">+ Přidat výdaj</a>
 
+<form class="row mb-4" method="get">
+  <div class="col-md-5">
+    <select name="category" class="form-select">
+      <option value="">Všechny kategorie</option>
+      {% for cat in categories %}
+      <option value="{{ cat.id }}">{{ cat.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-md-5">
+    <select name="month" class="form-select">
+      <option value="">Všechny měsíce</option>
+      {% for m in range(1, 13) %}
+      <option value="{{ m }}">{{ m }}. měsíc</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-md-2">
+    <button class="btn btn-secondary w-100" type="submit">Filtrovat</button>
+  </div>
+</form>
+
 <div class="row">
   <div class="col-md-4">
     <div class="card text-white bg-primary mb-3">
-      <div class="card-header">Total Expenses</div>
+      <div class="card-header">Celkem</div>
       <div class="card-body">
         <h5 class="card-title">{{ total_expenses | int }} Kč</h5>
       </div>
@@ -18,7 +40,7 @@
   </div>
 </div>
 
-<h3 class="mt-4">Poslední výdaje</h3>
+<h3 class="mt-4">Výpis výdajů</h3>
 <table class="table table-striped">
   <thead>
     <tr>
@@ -26,7 +48,7 @@
       <th>Částka</th>
       <th>Kategorie</th>
       <th>Datum</th>
-      <th>Smazat</th>
+      <th></th>
     </tr>
   </thead>
   <tbody>
@@ -34,11 +56,11 @@
     <tr>
       <td>{{ expense.name }}</td>
       <td>{{ expense.amount }} Kč</td>
-      <td>{{ expense.category }}</td>
+      <td>{{ expense.category_obj.name }}</td>
       <td>{{ expense.date.strftime('%Y-%m-%d') }}</td>
       <td>
         <form method="POST" action="{{ url_for('delete_expense', expense_id=expense.id) }}" style="display:inline;">
-          <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Opravdu smazat tento výdaj?');">Smazat</button>
+          <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Opravdu smazat?')">Smazat</button>
         </form>
       </td>
     </tr>
@@ -52,12 +74,12 @@
   new Chart(ctx, {
     type: 'bar',
     data: {
-      labels: {{ expenses | map(attribute='category') | list | unique | safe }},
+      labels: {{ expenses | map(attribute='category_obj.name') | list | unique | safe }},
       datasets: [{
         label: 'Výdaje dle kategorií',
         data: [
-          {% for category in expenses | map(attribute='category') | list | unique %}
-            {{ expenses | selectattr('category', 'equalto', category) | map(attribute='amount') | sum }},
+          {% for cat in categories %}
+            {{ expenses | selectattr('category', 'equalto', cat.id) | map(attribute='amount') | sum }},
           {% endfor %}
         ],
         backgroundColor: 'rgba(54, 162, 235, 0.6)'

@@ -3,14 +3,6 @@ from flask_sqlalchemy import SQLAlchemy
 from forms.expense_form import ExpenseForm
 from models.models import db, Expense, Category
 from datetime import date
-from io import StringIO
-from flask import make_response
-from io import BytesIO
-from flask import send_file
-from flask import render_template
-from weasyprint import HTML
-import csv
-import pandas as pd
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'tajny_klic'
@@ -81,39 +73,6 @@ def delete_category(category_id):
     db.session.delete(cat)
     db.session.commit()
     return redirect(url_for('settings'))
-
-@app.route('/export/csv')
-def export_csv():
-    si = StringIO()
-    cw = csv.writer(si)
-    cw.writerow(['Název', 'Částka', 'Kategorie', 'Datum'])
-
-    expenses = Expense.query.all()
-    for e in expenses:
-        cw.writerow([e.name, e.amount, e.category_obj.name, e.date.strftime('%Y-%m-%d')])
-
-    response = make_response(si.getvalue())
-    response.headers["Content-Disposition"] = "attachment; filename=vydaje.csv"
-    response.headers["Content-type"] = "text/csv"
-    return response
-
-@app.route('/export/excel')
-def export_excel():
-    data = [{
-        'Název': e.name,
-        'Částka': e.amount,
-        'Kategorie': e.category_obj.name,
-        'Datum': e.date.strftime('%Y-%m-%d')
-    } for e in Expense.query.all()]
-
-    df = pd.DataFrame(data)
-    output = BytesIO()
-    df.to_excel(output, index=False)
-    output.seek(0)
-
-    return send_file(output, as_attachment=True,
-                     download_name="vydaje.xlsx",
-                     mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 if __name__ == '__main__':
     app.run(debug=True)
