@@ -25,6 +25,5 @@ chromedriver.log
 # Ostatní
 .env
 *.tmp
-*.txt
 *.png
 .DS_Store
