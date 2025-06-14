@@ -33,5 +33,12 @@ def new_expense():
         return redirect(url_for('dashboard'))
     return render_template('new_expense.html', form=form)
 
+@app.route('/delete/<int:expense_id>', methods=['POST'])
+def delete_expense(expense_id):
+    expense = Expense.query.get_or_404(expense_id)
+    db.session.delete(expense)
+    db.session.commit()
+    return redirect(url_for('dashboard'))
+
 if __name__ == '__main__':
     app.run(debug=True)
