@@ -4,3 +4,4 @@ Flask-SQLAlchemy
 gunicorn
 pandas
 WeasyPrint
+xhtml2pdf

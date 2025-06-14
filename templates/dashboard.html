@@ -1,5 +1,9 @@
 {% extends "layout.html" %}
 {% block content %}
+<div class="mb-4 d-flex flex-wrap gap-2">
+  <a href="{{ url_for('export_csv') }}" class="btn btn-outline-secondary">Export CSV</a>
+  <a href="{{ url_for('export_excel') }}" class="btn btn-outline-secondary">Export Excel</a>
+</div>
 <h2>Dashboard</h2>
 
 <a href="{{ url_for('new_expense') }}" class="btn btn-success mb-4">+ Přidat výdaj</a>
@@ -36,7 +40,14 @@
     </div>
   </div>
   <div class="col-md-8">
-    <canvas id="expensesChart"></canvas>
+    <div class="row">
+      <div class="col-md-6">
+        <canvas id="expensesChart"></canvas>
+      </div>
+      <div class="col-md-6">
+        <canvas id="pieChart"></canvas>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -84,6 +95,32 @@
         ],
         backgroundColor: 'rgba(54, 162, 235, 0.6)'
       }]
+    }
+  });
+</script>
+<script>
+  const pieCtx = document.getElementById('pieChart').getContext('2d');
+  new Chart(pieCtx, {
+    type: 'doughnut',
+    data: {
+      labels: {{ chart_labels|safe }},
+      datasets: [{
+        label: 'Podíl výdajů podle kategorií',
+        data: {{ chart_values|safe }},
+        backgroundColor: [
+          '#007bff', '#28a745', '#ffc107', '#dc3545',
+          '#6f42c1', '#17a2b8', '#fd7e14', '#20c997'
+        ],
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {
+          position: 'bottom'
+        }
+      }
     }
   });
 </script>

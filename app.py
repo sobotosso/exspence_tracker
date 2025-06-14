@@ -7,10 +7,11 @@ from io import StringIO
 from flask import make_response
 from io import BytesIO
 from flask import send_file
-from flask import render_template
-from weasyprint import HTML
+from flask import render_template 
+from collections import defaultdict
 import csv
 import pandas as pd
+import json
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'tajny_klic'
@@ -20,21 +21,6 @@ db.init_app(app)
 with app.app_context():
     db.create_all()
 
-@app.route('/')
-def dashboard():
-    category_filter = request.args.get('category', type=int)
-    month_filter = request.args.get('month', type=int)
-    query = Expense.query
-
-    if category_filter:
-        query = query.filter(Expense.category == category_filter)
-    if month_filter:
-        query = query.filter(db.extract('month', Expense.date) == month_filter)
-
-    expenses = query.order_by(Expense.date.desc()).limit(50).all()
-    total = db.session.query(db.func.sum(Expense.amount)).scalar() or 0
-    categories = Category.query.order_by(Category.name).all()
-    return render_template('dashboard.html', expenses=expenses, total_expenses=total, categories=categories)
 
 @app.route('/new', methods=['GET', 'POST'])
 def new_expense():
@@ -88,13 +74,12 @@ def export_csv():
     cw = csv.writer(si)
     cw.writerow(['Název', 'Částka', 'Kategorie', 'Datum'])
 
-    expenses = Expense.query.all()
-    for e in expenses:
+    for e in Expense.query.all():
         cw.writerow([e.name, e.amount, e.category_obj.name, e.date.strftime('%Y-%m-%d')])
 
-    response = make_response(si.getvalue())
+    response = make_response('\ufeff' + si.getvalue())  # BOM prefix
     response.headers["Content-Disposition"] = "attachment; filename=vydaje.csv"
-    response.headers["Content-type"] = "text/csv"
+    response.headers["Content-Type"] = "text/csv; charset=utf-8"
     return response
 
 @app.route('/export/excel')
@@ -114,6 +99,38 @@ def export_excel():
     return send_file(output, as_attachment=True,
                      download_name="vydaje.xlsx",
                      mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+@app.route('/')
+def dashboard():
+    category_filter = request.args.get('category', type=int)
+    month_filter = request.args.get('month', type=int)
+    query = Expense.query
+
+    if category_filter:
+        query = query.filter(Expense.category == category_filter)
+    if month_filter:
+        query = query.filter(db.extract('month', Expense.date) == month_filter)
+
+    expenses = query.order_by(Expense.date.desc()).limit(50).all()
+    total = db.session.query(db.func.sum(Expense.amount)).scalar() or 0
+    categories = Category.query.order_by(Category.name).all()
+
+    # 💡 Výpočty pro koláčový graf
+    summary = defaultdict(float)
+    for e in expenses:
+        summary[e.category_obj.name] += e.amount
+
+    chart_labels = list(summary.keys())
+    chart_values = list(summary.values())
+
+    return render_template(
+        'dashboard.html',
+        expenses=expenses,
+        total_expenses=total,
+        categories=categories,
+        chart_labels=json.dumps(chart_labels, ensure_ascii=False),
+        chart_values=json.dumps(chart_values)
+    )
 
 if __name__ == '__main__':
     app.run(debug=True)
