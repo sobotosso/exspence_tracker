@@ -29,7 +29,13 @@ load_dotenv()
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'tajny_klic'
 basedir = os.path.abspath(os.path.dirname(__file__))
-app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(basedir, 'instance', 'expenses.db')}"
+
+# Zajisti, že složka 'instance' existuje
+instance_path = os.path.join(basedir, 'instance')
+if not os.path.exists(instance_path):
+    os.makedirs(instance_path)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(instance_path, 'expenses.db')}"
 db.init_app(app)
 
 # Flask-Login setup
