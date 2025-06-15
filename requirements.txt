@@ -5,3 +5,5 @@ gunicorn
 pandas
 WeasyPrint
 xhtml2pdf
+Flask-Login
+Flask-Dance
