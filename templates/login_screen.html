@@ -1,0 +1,32 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container d-flex justify-content-center align-items-center" style="min-height: 80vh;">
+  <div class="card shadow p-4" style="max-width: 400px; width: 100%;">
+    <h4 class="text-center mb-4">Přihlášení</h4>
+
+    <!-- Google login -->
+    <div class="d-grid mb-3">
+      <a href="{{ url_for('google.login') }}" class="btn btn-danger">
+        <i class="bi bi-google me-2"></i> Přihlásit se přes Google
+      </a>
+    </div>
+
+    <hr class="my-3">
+
+    <!-- Formulář pro klasické přihlášení -->
+    <form method="POST" action="{{ url_for('login_user_local') }}">
+      <div class="mb-3">
+        <label for="email" class="form-label">E-mail nebo uživatelské jméno</label>
+        <input type="text" class="form-control" id="email" name="email" placeholder="zadejte e-mail nebo admin" required>
+      </div>
+      <div class="mb-3">
+        <label for="password" class="form-label">Heslo</label>
+        <input type="password" class="form-control" id="password" name="password" placeholder="zadejte heslo" required>
+      </div>
+      <div class="d-grid">
+        <button type="submit" class="btn btn-primary">Přihlásit</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -1,21 +1,52 @@
 {% extends "layout.html" %}
 {% block content %}
-<h2>Nastavení</h2>
-<form method="POST" action="{{ url_for('add_category') }}" class="mb-3">
-  <div class="input-group">
-    <input type="text" name="name" class="form-control" placeholder="Nová kategorie" required>
-    <button class="btn btn-primary" type="submit">Přidat</button>
+<h2 class="mb-4">Nastavení</h2>
+<div class="row">
+  <div class="col-md-3 mb-4">
+    <div class="list-group">
+      <a href="{{ url_for('settings', sekce='kategorie') }}" class="list-group-item list-group-item-action {% if sekce == 'kategorie' %}active{% endif %}">Kategorie</a>
+      <a href="{{ url_for('settings', sekce='uzivatel') }}" class="list-group-item list-group-item-action {% if sekce == 'uzivatel' %}active{% endif %}">Uživatelské nastavení</a>
+    </div>
   </div>
-</form>
 
-<ul class="list-group">
-  {% for cat in categories %}
-  <li class="list-group-item d-flex justify-content-between align-items-center">
-    {{ cat.name }}
-    <form method="POST" action="{{ url_for('delete_category', category_id=cat.id) }}">
-      <button class="btn btn-sm btn-danger">Smazat</button>
-    </form>
-  </li>
-  {% endfor %}
-</ul>
+  <div class="col-md-9">
+    {% if sekce == 'kategorie' %}
+      <form method="POST" action="{{ url_for('add_category') }}" class="mb-3">
+        <div class="input-group">
+          <input type="text" name="name" class="form-control" placeholder="Nová kategorie" required>
+          <button class="btn btn-primary" type="submit">Přidat</button>
+        </div>
+      </form>
+
+      <ul class="list-group">
+        {% for cat in categories %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          {{ cat.name }}
+          <form method="POST" action="{{ url_for('delete_category', category_id=cat.id) }}">
+            <button class="btn btn-sm btn-danger">Smazat</button>
+          </form>
+        </li>
+        {% endfor %}
+      </ul>
+
+    {% elif sekce == 'uzivatel' %}
+      <h5>Změna hesla</h5>
+      <form method="POST" action="{{ url_for('update_password') }}">
+        <div class="mb-3">
+          <label for="current_password" class="form-label">Aktuální heslo</label>
+          <input type="password" class="form-control" name="current_password" required>
+        </div>
+        <div class="mb-3">
+          <label for="new_password" class="form-label">Nové heslo</label>
+          <input type="password" class="form-control" name="new_password" required>
+        </div>
+        <div class="mb-3">
+          <label for="confirm_password" class="form-label">Potvrzení hesla</label>
+          <input type="password" class="form-control" name="confirm_password" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Změnit heslo</button>
+      </form>
+    {% endif %}
+  </div>
+</div>
 {% endblock %}

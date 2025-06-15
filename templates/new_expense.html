@@ -1,12 +1,44 @@
 {% extends "layout.html" %}
 {% block content %}
-<h2>Přidat výdaj</h2>
-<form method="POST">
-    {{ form.hidden_tag() }}
-    <div class="mb-3">{{ form.name.label }}{{ form.name(class="form-control") }}</div>
-    <div class="mb-3">{{ form.amount.label }}{{ form.amount(class="form-control") }}</div>
-    <div class="mb-3">{{ form.category.label }}{{ form.category(class="form-select") }}</div>
-    <div class="mb-3">{{ form.date.label }}{{ form.date(class="form-control") }}</div>
-    {{ form.submit(class="btn btn-success") }}
-</form>
+<!-- Spouštěcí tlačítko -->
+<div class="text-end mb-3">
+  <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#expenseModal">
+    + Přidat výdaj
+  </button>
+</div>
+
+<!-- Modal -->
+<div class="modal fade show d-block" id="expenseModal" tabindex="-1" aria-labelledby="expenseModalLabel" aria-hidden="true" style="background: rgba(0,0,0,0.3);">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST">
+        {{ form.hidden_tag() }}
+        <div class="modal-header">
+          <h5 class="modal-title" id="expenseModalLabel">Přidat výdaj</h5>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            {{ form.name.label(class="form-label") }}
+            {{ form.name(class="form-control form-control-sm") }}
+          </div>
+          <div class="mb-3">
+            {{ form.amount.label(class="form-label") }}
+            {{ form.amount(class="form-control form-control-sm") }}
+          </div>
+          <div class="mb-3">
+            {{ form.category.label(class="form-label") }}
+            {{ form.category(class="form-select form-select-sm") }}
+          </div>
+          <div class="mb-3">
+            {{ form.date.label(class="form-label") }}
+            {{ form.date(class="form-control form-control-sm") }}
+          </div>
+        </div>
+        <div class="modal-footer justify-content-center">
+          <button type="submit" class="btn btn-primary px-5">Uložit</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 {% endblock %}

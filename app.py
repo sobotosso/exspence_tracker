@@ -9,8 +9,10 @@ from flask_login import (
     logout_user,
     current_user,
 )
+from werkzeug.security import generate_password_hash, check_password_hash
 from flask_dance.contrib.google import make_google_blueprint, google
 import os
+os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'  # povolit HTTP pro OAuth při vývoji
 from datetime import date
 from io import StringIO
 from flask import make_response
@@ -21,21 +23,29 @@ from collections import defaultdict
 import csv
 import pandas as pd
 import json
+from dotenv import load_dotenv
+load_dotenv()
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'tajny_klic'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///expenses.db'
+basedir = os.path.abspath(os.path.dirname(__file__))
+app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(basedir, 'instance', 'expenses.db')}"
 db.init_app(app)
 
 # Flask-Login setup
 login_manager = LoginManager(app)
-login_manager.login_view = 'login'
+login_manager.login_view = 'index'
 
 # OAuth setup
 google_bp = make_google_blueprint(
     client_id=os.environ.get('GOOGLE_OAUTH_CLIENT_ID'),
     client_secret=os.environ.get('GOOGLE_OAUTH_CLIENT_SECRET'),
-    scope=['profile', 'email'],
+    scope=[
+        "https://www.googleapis.com/auth/userinfo.email",
+        "https://www.googleapis.com/auth/userinfo.profile",
+        "openid"
+    ],
+    redirect_url="/login"
 )
 app.register_blueprint(google_bp, url_prefix='/login')
 
@@ -65,10 +75,21 @@ def login():
 @login_required
 def logout():
     logout_user()
-    return redirect(url_for('dashboard'))
+    return redirect(url_for('login_screen'))
+
+
+# Nová route pro přihlašovací obrazovku
+@app.route('/login-screen')
+def login_screen():
+    return render_template('login_screen.html')
 
 with app.app_context():
     db.create_all()
+    if not User.query.filter_by(email='admin').first():
+        admin = User(email='admin', name='Admin')
+        admin.password_hash = generate_password_hash('admin')
+        db.session.add(admin)
+        db.session.commit()
 
 
 @app.route('/new', methods=['GET', 'POST'])
@@ -118,8 +139,9 @@ def edit_expense(expense_id):
 @app.route('/settings', methods=['GET'])
 @login_required
 def settings():
+    sekce = request.args.get('sekce', 'kategorie')
     categories = Category.query.order_by(Category.name).all()
-    return render_template('settings.html', categories=categories)
+    return render_template('settings.html', categories=categories, sekce=sekce)
 
 @app.route('/add_category', methods=['POST'])
 @login_required
@@ -175,7 +197,27 @@ def export_excel():
                      download_name="vydaje.xlsx",
                      mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
+
+# Route for classic login (admin/admin)
+@app.route('/login-user', methods=['POST'])
+def login_user_local():
+    email = request.form.get('email')
+    password = request.form.get('password')
+    user = User.query.filter_by(email=email).first()
+    
+    if user and check_password_hash(user.password_hash, password):
+        login_user(user)
+        return redirect(url_for('dashboard'))
+    else:
+        return redirect(url_for('index'))
+
 @app.route('/')
+def index():
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+    return render_template('login_screen.html')
+
+@app.route('/dashboard')
 @login_required
 def dashboard():
     name_filter = request.args.get('name')
@@ -216,6 +258,22 @@ def dashboard():
         chart_labels=json.dumps(chart_labels, ensure_ascii=False),
         chart_values=json.dumps(chart_values)
     )
+
+@app.route('/update_password', methods=['POST'])
+@login_required
+def update_password():
+    current = request.form.get('current_password')
+    new = request.form.get('new_password')
+    confirm = request.form.get('confirm_password')
+
+    if not check_password_hash(current_user.password_hash, current):
+        return "Aktuální heslo je nesprávné", 400
+    if new != confirm:
+        return "Hesla se neshodují", 400
+
+    current_user.password_hash = generate_password_hash(new)
+    db.session.commit()
+    return redirect(url_for('settings', sekce='uzivatel'))
 
 if __name__ == '__main__':
     app.run(debug=True)
