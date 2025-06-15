@@ -120,14 +120,23 @@ def export_excel():
 
 @app.route('/')
 def dashboard():
-    category_filter = request.args.get('category', type=int)
-    month_filter = request.args.get('month', type=int)
+    name_filter = request.args.get('name')
+    amount_filter = request.args.get('amount')
+    selected_categories = request.args.getlist('categories')
+    date_filter = request.args.get('date')
     query = Expense.query
 
-    if category_filter:
-        query = query.filter(Expense.category == category_filter)
-    if month_filter:
-        query = query.filter(db.extract('month', Expense.date) == month_filter)
+    if name_filter:
+        query = query.filter(Expense.name.ilike(f"%{name_filter}%"))
+    if amount_filter:
+        try:
+            query = query.filter(Expense.amount == float(amount_filter))
+        except ValueError:
+            pass  # ignoruj neplatné číslo
+    if selected_categories:
+        query = query.join(Category).filter(Category.name.in_(selected_categories))
+    if date_filter:
+        query = query.filter(Expense.date.like(f"%{date_filter}%"))
 
     expenses = query.order_by(Expense.date.desc()).limit(50).all()
     total = db.session.query(db.func.sum(Expense.amount)).scalar() or 0

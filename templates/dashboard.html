@@ -8,28 +8,6 @@
 
 <a href="{{ url_for('new_expense') }}" class="btn btn-success mb-4">+ Přidat výdaj</a>
 
-<form class="row mb-4" method="get">
-  <div class="col-md-5">
-    <select name="category" class="form-select">
-      <option value="">Všechny kategorie</option>
-      {% for cat in categories %}
-      <option value="{{ cat.id }}">{{ cat.name }}</option>
-      {% endfor %}
-    </select>
-  </div>
-  <div class="col-md-5">
-    <select name="month" class="form-select">
-      <option value="">Všechny měsíce</option>
-      {% for m in range(1, 13) %}
-      <option value="{{ m }}">{{ m }}. měsíc</option>
-      {% endfor %}
-    </select>
-  </div>
-  <div class="col-md-2">
-    <button class="btn btn-secondary w-100" type="submit">Filtrovat</button>
-  </div>
-</form>
-
 <div class="row">
   <div class="col-md-4">
     <div class="card text-white bg-primary mb-3">
@@ -54,6 +32,41 @@
 <h3 class="mt-4">Výpis výdajů</h3>
 <table class="table table-striped">
   <thead>
+    <tr>
+      <form method="get" id="filterForm">
+        <th>
+          <input type="text" name="name" value="{{ request.args.get('name', '') }}" class="form-control form-control-sm" placeholder="Filtrovat název">
+        </th>
+        <th>
+          <input type="text" name="amount" value="{{ request.args.get('amount', '') }}" class="form-control form-control-sm" placeholder="Částka">
+        </th>
+        <th>
+          <div class="dropdown">
+            <button class="btn btn-sm btn-outline-secondary w-100 text-start d-flex justify-content-between align-items-center" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+              Kategorie <span class="bi bi-caret-down-fill ms-2"></span>
+            </button>
+            <div class="dropdown-menu p-3" style="width: 250px;">
+              <input type="text" class="form-control form-control-sm mb-2" placeholder="Hledat..." onkeyup="filterCategories(this)">
+              <div id="categoryCheckboxes" style="max-height: 200px; overflow-y: auto;">
+                {% for cat in categories %}
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" name="categories" value="{{ cat.name }}"
+                         id="cat{{ cat.id }}" {% if cat.name in request.args.getlist('categories') %}checked{% endif %}>
+                  <label class="form-check-label" for="cat{{ cat.id }}">{{ cat.name }}</label>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+        </th>
+        <th>
+          <input type="date" name="date" value="{{ request.args.get('date', '') }}" class="form-control form-control-sm">
+        </th>
+        <th>
+          <button type="submit" class="btn btn-sm btn-outline-secondary">🔍</button>
+        </th>
+      </form>
+    </tr>
     <tr>
       <th>Název</th>
       <th>Částka</th>
@@ -136,4 +149,32 @@
     }
   });
 </script>
-{% endblock %}
+<script>
+  function filterCategories(input) {
+    const filter = input.value.toLowerCase();
+    const checkboxes = document.querySelectorAll('#categoryCheckboxes .form-check');
+    checkboxes.forEach(check => {
+      const label = check.querySelector('label').textContent.toLowerCase();
+      check.style.display = label.includes(filter) ? '' : 'none';
+    });
+  }
+</script>
+<script>
+  // Odeslat při změně zaškrtnutí
+  document.querySelectorAll('input[name="categories"]').forEach(function(cb) {
+    cb.addEventListener('change', function() {
+      document.getElementById('filterForm').submit();
+    });
+  });
+
+  // Odeslat formulář po Enter
+  document.querySelectorAll('#filterForm input[type="text"], #filterForm input[type="date"]').forEach(function(input) {
+    input.addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        document.getElementById('filterForm').submit();
+      }
+    });
+  });
+</script>
+{% endblock %} 
