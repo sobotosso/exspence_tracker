@@ -38,12 +38,30 @@ def new_expense():
         return redirect(url_for('dashboard'))
     return render_template('new_expense.html', form=form)
 
+
 @app.route('/delete/<int:expense_id>', methods=['POST'])
 def delete_expense(expense_id):
     expense = Expense.query.get_or_404(expense_id)
     db.session.delete(expense)
     db.session.commit()
     return redirect(url_for('dashboard'))
+
+# Nová route pro editaci výdaje
+@app.route('/edit/<int:expense_id>', methods=['GET', 'POST'])
+def edit_expense(expense_id):
+    expense = Expense.query.get_or_404(expense_id)
+    form = ExpenseForm(obj=expense)
+    form.category.choices = [(c.id, c.name) for c in Category.query.order_by(Category.name).all()]
+
+    if form.validate_on_submit():
+        expense.name = form.name.data
+        expense.amount = float(form.amount.data)
+        expense.category = form.category.data
+        expense.date = form.date.data
+        db.session.commit()
+        return redirect(url_for('dashboard'))
+
+    return render_template('edit_expense.html', form=form)
 
 @app.route('/settings', methods=['GET'])
 def settings():

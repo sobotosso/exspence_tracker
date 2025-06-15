@@ -1,0 +1,27 @@
+
+
+{% extends "layout.html" %}
+{% block content %}
+<h2>Upravit výdaj</h2>
+<form method="POST">
+  {{ form.hidden_tag() }}
+  <div class="mb-3">
+    {{ form.name.label(class="form-label") }}
+    {{ form.name(class="form-control") }}
+  </div>
+  <div class="mb-3">
+    {{ form.amount.label(class="form-label") }}
+    {{ form.amount(class="form-control") }}
+  </div>
+  <div class="mb-3">
+    {{ form.category.label(class="form-label") }}
+    {{ form.category(class="form-control") }}
+  </div>
+  <div class="mb-3">
+    {{ form.date.label(class="form-label") }}
+    {{ form.date(class="form-control") }}
+  </div>
+  <button type="submit" class="btn btn-primary">Uložit změny</button>
+  <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Zrušit</a>
+</form>
+{% endblock %}
