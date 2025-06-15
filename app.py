@@ -92,14 +92,6 @@ def logout():
 def login_screen():
     return render_template('login_screen.html')
 
-with app.app_context():
-    db.create_all()
-    if not User.query.filter_by(email='admin').first():
-        admin = User(email='admin', name='Admin')
-        admin.password_hash = generate_password_hash('admin')
-        db.session.add(admin)
-        db.session.commit()
-
 
 @app.route('/new', methods=['GET', 'POST'])
 @login_required
