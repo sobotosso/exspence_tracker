@@ -35,7 +35,10 @@ instance_path = os.path.join(basedir, 'instance')
 if not os.path.exists(instance_path):
     os.makedirs(instance_path)
 
-app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(instance_path, 'expenses.db')}"
+db_url = os.environ.get('DATABASE_URL')
+if db_url and db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql://", 1)
+app.config['SQLALCHEMY_DATABASE_URI'] = db_url or f"sqlite:///{os.path.join(instance_path, 'expenses.db')}"
 db.init_app(app)
 
 # Flask-Login setup
