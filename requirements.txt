@@ -7,3 +7,4 @@ WeasyPrint
 xhtml2pdf
 Flask-Login
 Flask-Dance
+python-dotenv
