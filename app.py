@@ -1,7 +1,16 @@
 from flask import Flask, render_template, redirect, url_for, request
 from flask_sqlalchemy import SQLAlchemy
 from forms.expense_form import ExpenseForm
-from models.models import db, Expense, Category
+from models.models import db, Expense, Category, User
+from flask_login import (
+    LoginManager,
+    login_required,
+    login_user,
+    logout_user,
+    current_user,
+)
+from flask_dance.contrib.google import make_google_blueprint, google
+import os
 from datetime import date
 from io import StringIO
 from flask import make_response
@@ -18,11 +27,52 @@ app.config['SECRET_KEY'] = 'tajny_klic'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///expenses.db'
 db.init_app(app)
 
+# Flask-Login setup
+login_manager = LoginManager(app)
+login_manager.login_view = 'login'
+
+# OAuth setup
+google_bp = make_google_blueprint(
+    client_id=os.environ.get('GOOGLE_OAUTH_CLIENT_ID'),
+    client_secret=os.environ.get('GOOGLE_OAUTH_CLIENT_SECRET'),
+    scope=['profile', 'email'],
+)
+app.register_blueprint(google_bp, url_prefix='/login')
+
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+
+@app.route('/login')
+def login():
+    if not google.authorized:
+        return redirect(url_for('google.login'))
+    resp = google.get('/oauth2/v2/userinfo')
+    if resp.ok:
+        info = resp.json()
+        user = User.query.filter_by(email=info['email']).first()
+        if not user:
+            user = User(email=info['email'], name=info.get('name'))
+            db.session.add(user)
+            db.session.commit()
+        login_user(user)
+    return redirect(url_for('dashboard'))
+
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('dashboard'))
+
 with app.app_context():
     db.create_all()
 
 
 @app.route('/new', methods=['GET', 'POST'])
+@login_required
 def new_expense():
     form = ExpenseForm()
     form.category.choices = [(c.id, c.name) for c in Category.query.order_by(Category.name).all()]
@@ -40,6 +90,7 @@ def new_expense():
 
 
 @app.route('/delete/<int:expense_id>', methods=['POST'])
+@login_required
 def delete_expense(expense_id):
     expense = Expense.query.get_or_404(expense_id)
     db.session.delete(expense)
@@ -48,6 +99,7 @@ def delete_expense(expense_id):
 
 # Nová route pro editaci výdaje
 @app.route('/edit/<int:expense_id>', methods=['GET', 'POST'])
+@login_required
 def edit_expense(expense_id):
     expense = Expense.query.get_or_404(expense_id)
     form = ExpenseForm(obj=expense)
@@ -64,11 +116,13 @@ def edit_expense(expense_id):
     return render_template('edit_expense.html', form=form)
 
 @app.route('/settings', methods=['GET'])
+@login_required
 def settings():
     categories = Category.query.order_by(Category.name).all()
     return render_template('settings.html', categories=categories)
 
 @app.route('/add_category', methods=['POST'])
+@login_required
 def add_category():
     name = request.form.get('name')
     if name:
@@ -80,6 +134,7 @@ def add_category():
     return redirect(url_for('settings'))
 
 @app.route('/delete_category/<int:category_id>', methods=['POST'])
+@login_required
 def delete_category(category_id):
     cat = Category.query.get_or_404(category_id)
     db.session.delete(cat)
@@ -87,6 +142,7 @@ def delete_category(category_id):
     return redirect(url_for('settings'))
 
 @app.route('/export/csv')
+@login_required
 def export_csv():
     si = StringIO()
     cw = csv.writer(si)
@@ -101,6 +157,7 @@ def export_csv():
     return response
 
 @app.route('/export/excel')
+@login_required
 def export_excel():
     data = [{
         'Název': e.name,
@@ -119,6 +176,7 @@ def export_excel():
                      mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 @app.route('/')
+@login_required
 def dashboard():
     name_filter = request.args.get('name')
     amount_filter = request.args.get('amount')
