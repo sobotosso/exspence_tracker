@@ -1,4 +1,4 @@
-from flask import Flask, render_template, redirect, url_for, request
+from flask import Flask, render_template, redirect, url_for, request, abort
 from flask_sqlalchemy import SQLAlchemy
 from forms.expense_form import ExpenseForm
 from models.models import db, Expense, Category, User
@@ -10,7 +10,9 @@ from flask_login import (
     current_user,
 )
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 from flask_dance.contrib.google import make_google_blueprint, google
+from flask import request, flash
 import os
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'  # povolit HTTP pro OAuth při vývoji
 from datetime import date
@@ -97,13 +99,14 @@ def login_screen():
 @login_required
 def new_expense():
     form = ExpenseForm()
-    form.category.choices = [(c.id, c.name) for c in Category.query.order_by(Category.name).all()]
+    form.category.choices = [(c.id, c.name) for c in Category.query.filter_by(user_id=current_user.id).order_by(Category.name).all()]
     if form.validate_on_submit():
         new = Expense(
             name=form.name.data,
             amount=float(form.amount.data),
             category=form.category.data,
-            date=form.date.data
+            date=form.date.data,
+            user_id=current_user.id
         )
         db.session.add(new)
         db.session.commit()
@@ -115,6 +118,8 @@ def new_expense():
 @login_required
 def delete_expense(expense_id):
     expense = Expense.query.get_or_404(expense_id)
+    if expense.user_id != current_user.id:
+        abort(403)
     db.session.delete(expense)
     db.session.commit()
     return redirect(url_for('dashboard'))
@@ -124,8 +129,10 @@ def delete_expense(expense_id):
 @login_required
 def edit_expense(expense_id):
     expense = Expense.query.get_or_404(expense_id)
+    if expense.user_id != current_user.id:
+        abort(403)
     form = ExpenseForm(obj=expense)
-    form.category.choices = [(c.id, c.name) for c in Category.query.order_by(Category.name).all()]
+    form.category.choices = [(c.id, c.name) for c in Category.query.filter_by(user_id=current_user.id).order_by(Category.name).all()]
 
     if form.validate_on_submit():
         expense.name = form.name.data
@@ -141,7 +148,7 @@ def edit_expense(expense_id):
 @login_required
 def settings():
     sekce = request.args.get('sekce', 'kategorie')
-    categories = Category.query.order_by(Category.name).all()
+    categories = Category.query.filter_by(user_id=current_user.id).order_by(Category.name).all()
     return render_template('settings.html', categories=categories, sekce=sekce)
 
 @app.route('/add_category', methods=['POST'])
@@ -149,9 +156,9 @@ def settings():
 def add_category():
     name = request.form.get('name')
     if name:
-        existing = Category.query.filter_by(name=name).first()
+        existing = Category.query.filter_by(name=name, user_id=current_user.id).first()
         if not existing:
-            new_cat = Category(name=name)
+            new_cat = Category(name=name, user_id=current_user.id)
             db.session.add(new_cat)
             db.session.commit()
     return redirect(url_for('settings'))
@@ -171,7 +178,7 @@ def export_csv():
     cw = csv.writer(si)
     cw.writerow(['Název', 'Částka', 'Kategorie', 'Datum'])
 
-    for e in Expense.query.all():
+    for e in Expense.query.filter_by(user_id=current_user.id):
         cw.writerow([e.name, e.amount, e.category_obj.name, e.date.strftime('%Y-%m-%d')])
 
     response = make_response('\ufeff' + si.getvalue())  # BOM prefix
@@ -187,7 +194,7 @@ def export_excel():
         'Částka': e.amount,
         'Kategorie': e.category_obj.name,
         'Datum': e.date.strftime('%Y-%m-%d')
-    } for e in Expense.query.all()]
+    } for e in Expense.query.filter_by(user_id=current_user.id)]
 
     df = pd.DataFrame(data)
     output = BytesIO()
@@ -225,7 +232,7 @@ def dashboard():
     amount_filter = request.args.get('amount')
     selected_categories = request.args.getlist('categories')
     date_filter = request.args.get('date')
-    query = Expense.query
+    query = Expense.query.filter_by(user_id=current_user.id)
 
     if name_filter:
         query = query.filter(Expense.name.ilike(f"%{name_filter}%"))
@@ -240,8 +247,8 @@ def dashboard():
         query = query.filter(Expense.date.like(f"%{date_filter}%"))
 
     expenses = query.order_by(Expense.date.desc()).limit(50).all()
-    total = db.session.query(db.func.sum(Expense.amount)).scalar() or 0
-    categories = Category.query.order_by(Category.name).all()
+    total = db.session.query(db.func.sum(Expense.amount)).filter(Expense.user_id == current_user.id).scalar() or 0
+    categories = Category.query.filter_by(user_id=current_user.id).order_by(Category.name).all()
 
     # 💡 Výpočty pro koláčový graf
     summary = defaultdict(float)
@@ -274,6 +281,44 @@ def update_password():
 
     current_user.password_hash = generate_password_hash(new)
     db.session.commit()
+    return redirect(url_for('settings', sekce='uzivatel'))
+
+@app.route('/update-name', methods=['POST'])
+@login_required
+def update_name():
+    new_name = request.form.get('name')
+    if new_name:
+        current_user.name = new_name
+        db.session.commit()
+        flash("Jméno bylo aktualizováno.", "success")
+    else:
+        flash("Zadejte platné jméno.", "danger")
+    return redirect(url_for('settings'))
+
+@app.route('/upload-avatar', methods=['POST'])
+@login_required
+def upload_avatar():
+    if 'avatar' not in request.files:
+        flash("Nebyl vybrán žádný soubor.", "warning")
+        return redirect(url_for('settings', sekce='uzivatel'))
+
+    file = request.files['avatar']
+    if file.filename == '':
+        flash("Nebyl vybrán žádný soubor.", "warning")
+        return redirect(url_for('settings', sekce='uzivatel'))
+
+    ext = os.path.splitext(file.filename)[1]
+    filename = f"user_{current_user.id}{ext}"
+    filepath = os.path.join(app.root_path, 'static', 'uploads', filename)
+
+    try:
+        file.save(filepath)
+        current_user.avatar_filename = filename
+        db.session.commit()
+        flash("Avatar byl úspěšně nahrán.", "success")
+    except Exception as e:
+        flash(f"Chyba při nahrávání souboru: {str(e)}", "danger")
+
     return redirect(url_for('settings', sekce='uzivatel'))
 
 if __name__ == '__main__':
